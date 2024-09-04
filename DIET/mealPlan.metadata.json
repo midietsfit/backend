@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"a682cc2650c44c51a09d1dbc15b4e8a6","collectionName":"mealPlan","type":"collection"}
