@@ -34,20 +34,7 @@ def getRole(roleName):
         return getrole[0]['_id']
     else:
         return "None"
+    
+    
+# 46SCB552K2TSZP771XA827BY
 
-# def send_otp_to_mobile(mobile_number):
-#     account_sid = 'AC5507190ad516af84144107b5a5e2d250'
-#     auth_token = '642531ab3b431354a2d631b829f71eb4'
-#     twilio_phone_number = '+91 8708182238'
-#     generated_otp = str(random.randint(100000, 999999))
-#     print("Generated OTP",generated_otp)
-#     client = Client(account_sid, auth_token)
-#     message = client.messages.create(
-#         body=f"Your OTP is: {generated_otp}",
-#         from_=twilio_phone_number,
-#         to=mobile_number
-#     )
-#     print("Message sent to mobile_number with SID: {message.sid}")
-
-# mobile_number = '+91 75056 20556'
-# send_otp_to_mobile(mobile_number)

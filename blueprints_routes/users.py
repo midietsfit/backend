@@ -1508,6 +1508,31 @@ def downloadBlogApi(current_user, id):
         return jsonify({"msg": "Please! Login First"})
 
 
+@user.route("/send_otp_to_mobile",methods=["POST","GET"])
+@token_required
+def send_otp_to_mobile(current_user):
+    
+    if request.method=='GET':
+        return ""
+    elif:
+        body=request.get_json()
+        account_sid = 'ACbe0bd62f43a97d82ef03690fe3803bb3'
+        auth_token = 'dedcb3c0356f7f9846b8c00e38f720e8'
+        twilio_phone_number = '+18563176794'
+        generated_otp = str(random.randint(100000, 999999))
+        print("Generated OTP",generated_otp)
+        client = Client(account_sid, auth_token)
+        message = client.messages.create(
+            body=f"Your OTP is: {generated_otp}",
+            from_=twilio_phone_number,
+            to=body["mobile_number"]
+        )
+        print(f"Message sent to mobile_number with SID: {message.sid}")
+        
+        
+        return jsonify({'msg':"OTP Sended Successfully",'status':200})
+# mobile_number = '+918130368188'
+# send_otp_to_mobile(mobile_number)
 @user.route("/NotificationApi/<id>",methods=["POST","GET"])
 @token_required
 def NotificationApi(current_user,id): 
