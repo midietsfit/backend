@@ -1514,7 +1514,7 @@ def send_otp_to_mobile(current_user):
     
     if request.method=='GET':
         return ""
-    elif:
+    elif request.method=='POST':
         body=request.get_json()
         account_sid = 'ACbe0bd62f43a97d82ef03690fe3803bb3'
         auth_token = 'dedcb3c0356f7f9846b8c00e38f720e8'
