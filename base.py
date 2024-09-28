@@ -1,9 +1,10 @@
-from flask import Flask, json, jsonify, redirect, request, Response, Blueprint ,  send_file, make_response
+from flask import Flask, json, jsonify, redirect, request, Response, Blueprint ,  send_file, make_response,render_template
 from twilio.rest import Client
 import random
 # import requests
 # from common import mongoDb_operation as cmo
 from common import mongoDb_operation as cmo
+from common import twillio_msg as twillio_msg
 from flask_cors import CORS
 import jwt
 from bson.objectid import ObjectId
