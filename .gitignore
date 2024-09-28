@@ -18,6 +18,7 @@ myenv/
 penv/
 sandeep_venv2/
 venv2/
+venv/
 
 # Compiled Java class files
 *.class
