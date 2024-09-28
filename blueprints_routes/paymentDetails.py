@@ -142,12 +142,74 @@ def create_payment_link(current_user):
         print("asfsafsafsadsadffdasd_current_user",current_user)
         data = request.get_json()
         print("afdasfasfasdfaf___data_in_Link",data)
+        
+        # data["payDetailsObj"]["planName"]
+        
+        # data["payDetailsObj"]["planDiscount"]
+        disc=[
+                {
+                    '$match': {
+                        'discount': int(data["discount"])
+                    }
+                }
+            ]
+        dataDisc = cmo.finding_aggregate("discount",disc)
+        planN=[
+                {
+                    '$match': {
+                        'planType': data["planName"]
+                    }
+                }
+            ]
+        dataplanN = list(cmo.finding_aggregate("makePlan",planN))
+        
         # return jsonify({'success': True,}), 200
         # exit()
-        amount =int(data.get('amount'))* 100  # amount in paise
-        customer_name = data.get('userName')
-        customer_email = data.get('email')
-        customer_contact = data.get('contact')
+        finaldiscount = int(data["discount"]) if len(list(dataDisc))>0 else 0
+        
+        finalduration = int(data["duration"]) if data["duration"] else 0
+        
+        finalDbPrice  = 0
+        if(len(dataplanN)>0):
+            
+            finalDbPrice = dataplanN[0]["price"]
+            
+        else:
+            return jsonify({'success': False, 'error': str("e")}), 500
+        
+    
+        
+        
+        total = finalduration * finalDbPrice - (finalduration * finalDbPrice * finaldiscount / 100)
+        
+        # amount =int(data.get('amount'))* 100  # amount in paise
+        amount = total * 100  # amount in paise
+        
+        usersN=[
+                {
+                    '$match': {
+                        '_id': ObjectId(data["userId"])
+                    }
+                }
+            ]
+        usersDN = list(cmo.finding_aggregate("users",usersN))
+        
+        
+        if(len(usersDN)==0):
+            return jsonify({'success': False, 'error': str("e")}), 500
+        
+        
+            
+        print(usersDN[0],"usersDNusersDNusersDN")
+        
+        customer_name = usersDN[0]["fullname"] if "fullname" in usersDN[0] else ""
+        customer_email = usersDN[0]["email"] if "email" in usersDN[0] else ""
+        customer_contact = usersDN[0]["mobile"] if "mobile" in usersDN[0] else ""
+        
+        
+        payName = data.get('payName')
+        # customer_email = data.get('email')
+        # customer_contact = data.get('contact')
         if(current_user['role'] != 'SUPER_ADMIN'):
             data['memberName']=current_user['fullname'] 
             data['member_id'] = current_user['_id']
@@ -182,7 +244,7 @@ def create_payment_link(current_user):
             "amount": amount,
             "currency": "INR",
             "accept_partial": False,
-            "description": "Payment for order",
+            "description": payName,
             "customer": {
                 "name": customer_name,
                 "email": customer_email,
@@ -191,15 +253,18 @@ def create_payment_link(current_user):
             "notify": {
                 "sms": True,
                 "email": True,
+                "whatsapp": True,
             },
             "reminder_enable": True,
-            "callback_url": "https://midietapi.fourbrick.in/webhook",
+            "callback_url": "https://api.midiets.com/webhookCall",
             # "callback_url": "http://127.0.0.1:9898/webhook",
             "callback_method": "get"
         }
-
+        
+        
+        print(payment_link_data,"payment_link_datapayment_link_datapayment_link_data")
         payment_link = client.payment_link.create(payment_link_data)
-        print("afasfsadfdsafasfddsafdsfafds__payment_link",payment_link)
+        print("afasfsadfdsafasfddsafdsfafds__payment_link",payment_link,payment_link_data)
         data['razorpay_payment_link_id'] = payment_link['id']
         data['payment_link'] = payment_link['short_url']
         data['paymentApprovedStatus']='pending'
@@ -207,11 +272,51 @@ def create_payment_link(current_user):
         insertion_id = cmo.insertion('payment',data)
         print("fdsadfsadfafdsfdafdaf__id",insertion_id)
         
-        return jsonify({'success': True, 'payment_link': payment_link}), 200
+        return jsonify({'success': True, 'payment_link': payment_link['short_url']}), 200
     except Exception as e:
         print(f"Error in creating payment link: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
     
+@paymentDetails.route("/webhookCallSuccess", methods=["GET"])
+def webhookCallSuccess():
+        return render_template("pay.html")
+@paymentDetails.route("/webhookCall", methods=["GET"])
+def webhookCall():
+    try:
+        razorpay_signature = request.args.get('razorpay_signature')
+        print("afasffdsafd__received_signature",razorpay_signature)
+        razorpay_payment_id = request.args.get('razorpay_payment_id')
+        print("afasffdsafd__razorpay_payment_id",razorpay_payment_id)
+        razorpay_payment_link_id = request.args.get('razorpay_payment_link_id')
+        print("afasffdsafd__razorpay_payment_link_id",razorpay_payment_link_id)
+        razorpay_payment_link_status = request.args.get('razorpay_payment_link_status')
+        print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_status)
+        razorpay_payment_link_reference_id = request.args.get('razorpay_payment_link_reference_id')
+        print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_reference_id)
+        
+        if not razorpay_signature:
+            return jsonify({'status': 'error', 'message': 'Missing razorpay_signature parameter'}), 400
+        
+        
+        
+        new_data = {
+                'razorpay_payment_id': razorpay_payment_id,
+                'paymentStatus': razorpay_payment_link_status
+            }
+        
+        update_result = cmo.update('payment', {'razorpay_payment_link_id': razorpay_payment_link_id}, new_data,True)
+        if update_result:
+            return redirect("/webhookCallSuccess")
+            
+        else:
+            return jsonify({'status': 'error', 'message': 'Update failed'}), 500
+        
+        
+    except Exception as e:
+        print(f"Error processing webhook: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @paymentDetails.route("/payment", methods=["GET"])
 @paymentDetails.route('/payment/<id>',methods=["GET","POST","DELETE","PATCH","PUT"])
 @token_required
@@ -271,38 +376,49 @@ def create_order(current_user, id=None):
     
     # return jsonify(payment_order)
 
-@paymentDetails.route('/webhook', methods=['GET'])
+@paymentDetails.route('/webhook', methods=['GET','POST'])
 def webhook():
-    try:
-        razorpay_signature = request.args.get('razorpay_signature')
-        print("afasffdsafd__received_signature",razorpay_signature)
-        razorpay_payment_id = request.args.get('razorpay_payment_id')
-        print("afasffdsafd__razorpay_payment_id",razorpay_payment_id)
-        razorpay_payment_link_id = request.args.get('razorpay_payment_link_id')
-        print("afasffdsafd__razorpay_payment_link_id",razorpay_payment_link_id)
-        razorpay_payment_link_status = request.args.get('razorpay_payment_link_status')
-        print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_status)
-        razorpay_payment_link_reference_id = request.args.get('razorpay_payment_link_reference_id')
-        print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_reference_id)
+    if request.method=='GET':
+        print(request.args)
+    
+    if request.method=='POST':
         
-        if not razorpay_signature:
-            return jsonify({'status': 'error', 'message': 'Missing razorpay_signature parameter'}), 400
+        data=request.get_json()
+        print(data)
         
-        new_data = {
-                'razorpay_payment_id': razorpay_payment_id,
-                'paymentStatus': razorpay_payment_link_status
-            }
+        cmo.insertion("payementEventLogs",data)
+        return jsonify({'status': 'success'}), 200
         
-        update_result = cmo.update('payment', {'razorpay_payment_link_id': razorpay_payment_link_id}, new_data,True)
-        if update_result:
-            return jsonify({'status': 'success'}), 200
-        else:
-            return jsonify({'status': 'error', 'message': 'Update failed'}), 500
+    # try:
+    #     razorpay_signature = request.args.get('razorpay_signature')
+    #     print("afasffdsafd__received_signature",razorpay_signature)
+    #     razorpay_payment_id = request.args.get('razorpay_payment_id')
+    #     print("afasffdsafd__razorpay_payment_id",razorpay_payment_id)
+    #     razorpay_payment_link_id = request.args.get('razorpay_payment_link_id')
+    #     print("afasffdsafd__razorpay_payment_link_id",razorpay_payment_link_id)
+    #     razorpay_payment_link_status = request.args.get('razorpay_payment_link_status')
+    #     print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_status)
+    #     razorpay_payment_link_reference_id = request.args.get('razorpay_payment_link_reference_id')
+    #     print("afasffdsafd__razorpay_payment_link_status",razorpay_payment_link_reference_id)
+        
+    #     if not razorpay_signature:
+    #         return jsonify({'status': 'error', 'message': 'Missing razorpay_signature parameter'}), 400
+        
+    #     new_data = {
+    #             'razorpay_payment_id': razorpay_payment_id,
+    #             'paymentStatus': razorpay_payment_link_status
+    #         }
+        
+    #     update_result = cmo.update('payment', {'razorpay_payment_link_id': razorpay_payment_link_id}, new_data,True)
+    #     if update_result:
+    # return jsonify({'status': 'success'}), 200
+    #     else:
+    #         return jsonify({'status': 'error', 'message': 'Update failed'}), 500
         
         
-    except Exception as e:
-        print(f"Error processing webhook: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    # except Exception as e:
+    #     print(f"Error processing webhook: {e}")
+    #     return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 

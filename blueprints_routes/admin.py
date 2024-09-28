@@ -128,6 +128,290 @@ def manage_notification(current_user,id=None):
 #     respond=list(cmo.finding_aggregate("users",arr))
 #     return respond
 
+@admin.route("/meals",methods=["GET","POST","PUT","DELETE"])
+@admin.route("/meals/<id>",methods=["GET","POST","PUT","DELETE"])
+@token_required
+def meals(current_user,id=None):
+    try:
+        if request.method == "GET":
+            arr=[{
+                    '$addFields': {
+                        'uId': {
+                            '$toString': '$_id'
+                        }
+                    }
+                }, {
+                    '$project': {
+                        '_id': 0
+                    }
+                }]
+            respond=list(cmo.finding_aggregate("mealsMapper",arr))
+            return {"data":respond}
+        
+        if request.method == "PUT":
+            if id is not None:
+                try:
+                    body = request.get_json()
+                    update_by = {'_id': ObjectId(id)}
+                    cmo.update("mealsMapper", update_by, body, False)
+                    return jsonify({'msg': 'Updated Successfully'})
+                except Exception as e:
+                    return jsonify({'errordddd': str(e)}), 500
+            else:
+                return jsonify({'msg': 'Invalid Id'})
+    
+    except Exception as e:
+        return jsonify({'errorsssss': str(e)}), 500  
+
+
+
+@admin.route("/recipes",methods=["GET","POST","PUT","DELETE"])
+@admin.route("/recipes/<id>",methods=["GET","POST","PUT","DELETE"])
+@token_required
+def recipes(current_user,id=None):
+    try:
+        if request.method == "GET":
+            arr=[{
+                    '$addFields': {
+                        'uId': {
+                            '$toString': '$_id'
+                        }
+                    }
+                }, {
+                    '$project': {
+                        '_id': 0
+                    }
+                }]
+            respond=list(cmo.finding_aggregate("recipes",arr))
+            return {"data":respond}
+        
+        if request.method == "POST":
+
+            image = request.files.get("img")
+            recipe_name = request.form.get("recipe_name")
+            how_to_make = request.form.get('how_to_make')
+            description = request.form.get('description')
+
+            if image:
+                ext = str(image.filename).split(".")[-1]
+                img_name = str(unique_timestamp()) + "." + ext
+                path = os.path.join(UPLOAD_FOLDER, img_name)
+                image.save(path)
+
+            body = {
+                'img':path if image else None,
+                'recipe_name':recipe_name,
+                'description':description,
+                'how_to_make':how_to_make,
+            }
+
+            Response=cmo.insertion("recipes",body)
+            return jsonify({'msg':"Successfully inserted data",'status':'true','statusCode':201}),201
+
+        
+        if request.method == "PUT":
+            if id is not None:
+                try:
+                    
+                    image = request.files.get("img")
+                    recipe_name = request.form.get("recipe_name")
+                    how_to_make = request.form.get('how_to_make')
+                    description = request.form.get('description')
+                    body = {
+                    'recipe_name':recipe_name,
+                    'description':description,
+                    'how_to_make':how_to_make
+                    }
+                    if image:
+                        ext = str(image.filename).split(".")[-1]
+                        img_name = str(unique_timestamp()) + "." + ext
+                        path = os.path.join(UPLOAD_FOLDER, img_name)
+                        image.save(path)
+
+                        body['img']=path if image else None,
+                    
+                    
+                    update_by = {'_id': ObjectId(id)}
+                    cmo.update("recipes", update_by, body, False)
+                    return jsonify({'msg': 'Updated Successfully'})
+                except Exception as e:
+                    return jsonify({'errordddd': str(e)}), 500
+            else:
+                return jsonify({'msg': 'Invalid Id'})
+            
+        
+        if request.method == "DELETE":
+            if id!=None:
+                respond=cmo.deleteStatus("recipes",id)
+                return jsonify({'msg':'Successfully Deleted'}),200
+            else:
+                return jsonify({'msg':'Unsuccessfully Updated'}),404
+    
+    except Exception as e:
+        return jsonify({'errorsssss': str(e)}), 500  
+
+
+
+
+@admin.route("/mealsData",methods=["GET","POST","PUT","DELETE"])
+@token_required
+def mealsData(current_user):
+    
+    print(current_user["_id"])
+    try:
+        if request.method == "GET":
+            arr=[
+                    {
+                        '$lookup': {
+                            'from': 'meals', 
+                            'localField': 'meal', 
+                            'foreignField': 'meal', 
+                            'let': {
+                                'uID': current_user["_id"]
+                            }, 
+                            'pipeline': [
+                                {
+                                    '$match': {
+                                        '$expr': {
+                                            '$eq': [
+                                                '$$uID', '$primaryId'
+                                            ]
+                                        }
+                                    }
+                                },{
+                                    '$lookup': {
+                                        'from': 'recipes', 
+                                        'localField': 'food', 
+                                        'foreignField': 'recipe_name', 
+                                        'pipeline': [
+                                            {
+                                                '$project': {
+                                                    '_id': 0
+                                                }
+                                            }
+                                        ], 
+                                        'as': 'result'
+                                    }
+                                }, {
+                                    '$unwind': {
+                                        'path': '$result', 
+                                        'preserveNullAndEmptyArrays': True
+                                    }
+                                }, {
+                                    '$group': {
+                                        '_id': '$date', 
+                                        'diets': {
+                                            '$addToSet': {
+                                                'name': '$food', 
+                                                'quantity': '$foodQty', 
+                                                'isVeg': '$is_veg',
+                                                'result':{
+                                                    "$ifNull":["$result",{}]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }, {
+                                    '$addFields': {
+                                        'uuId': {
+                                            '$toString': '$_id'
+                                        }
+                                    }
+                                }, {
+                                    '$project': {
+                                        '_id': 0
+                                    }
+                                }
+                            ], 
+                            'as': 'result'
+                        }
+                    }, {
+                        '$addFields': {
+                            'uId': {
+                                '$toString': '$_id'
+                            }
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$result', 
+                            'preserveNullAndEmptyArrays': True
+                        }
+                    }, {
+                        '$addFields': {
+                            'resultdiets': '$result.diets', 
+                            'resultDates': '$result.uuId'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$resultdiets', 
+                            'preserveNullAndEmptyArrays': True
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'resultDates': '$resultDates', 
+                                'meal': '$meal'
+                            }, 
+                            'name': {
+                                '$first': '$name'
+                            }, 
+                            'time': {
+                                '$first': '$time'
+                            }, 
+                            'diets': {
+                                '$addToSet': '$resultdiets'
+                            }
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'resultDates': '$_id.resultDates'
+                            }, 
+                            'date': {
+                                '$first': '$_id.resultDates'
+                            }, 
+                            'dietsWholeDay': {
+                                '$addToSet': {
+                                    'diets': '$diets', 
+                                    'title': '$name', 
+                                    'time': '$time'
+                                }
+                            }
+                        }
+                    },{
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
+            respond=list(cmo.finding_aggregate("mealsMapper",arr))
+            
+            newRes=[]
+            
+            for i in respond:
+                if(i["date"]):
+                    newRes.append(i)
+            return {"dietData":newRes}
+        
+        if request.method == "PUT":
+            if id is not None:
+                try:
+                    body = request.get_json()
+                    update_by = {'_id': ObjectId(id)}
+                    cmo.update("mealsMapper", update_by, body, False)
+                    return jsonify({'msg': 'Updated Successfully'})
+                except Exception as e:
+                    return jsonify({'errordddd': str(e)}), 500
+            else:
+                return jsonify({'msg': 'Invalid Id'})
+    
+    except Exception as e:
+        return jsonify({'errorsssss': str(e)}), 500  
+
+
+
+
+
 @admin.route("/restrictUser",methods=["GET","POST","PUT","DELETE"])
 @admin.route("/restrictUser/<id>",methods=["GET","POST","PUT","DELETE"])
 @token_required
@@ -610,7 +894,7 @@ def Food_Items(current_user,id=None):
             }
         ]
         print(arra,'arraarraarra')
-        data=list(cmo.finding_aggregate("foodItems",arra))
+        data=list(cmo.finding_aggregate("recipes",arra))
         return jsonify({'data':data}),200
     
     if request.method == "POST":
@@ -768,28 +1052,37 @@ def discounttouser(current_user,id=None):
         return jsonify({'msg':'Data get Successfully','data':respond}),200
     
     if request.method == "POST":
-        discount = int(request.form.get('discount'))
-        if not discount:
-            return jsonify({'msg':'please provide discount'}),404
-        data = {
-            'discount':discount
-        }
-        cmo.insertion("discount",data)
-        return jsonify({'msg':'data insert successfully'}),201
-    
-    if request.method == "PUT":
-        if id!=None:
+        
+        try:
             discount = int(request.form.get('discount'))
-            if not discount:
-                return jsonify({'msg':'please provide discount'}),404
+            print(discount)
+            
             data = {
                 'discount':discount
             }
-            updateBy = {
-                '_id':ObjectId(id)
-            }
-            cmo.update("discount",updateBy,data,False)
-            return jsonify({'msg':'data updated successfully'}),200
+            cmo.insertion("discount",data)
+            return jsonify({'msg':'data insert successfully'}),201
+        except Exception as e:
+            return jsonify({'msg':'please provide discount'}),400
+            
+    
+    if request.method == "PUT":
+        if id!=None:
+            try:
+                    
+                discount = int(request.form.get('discount'))
+                print(discount)
+                data = {
+                    'discount':discount
+                }
+                updateBy = {
+                    '_id':ObjectId(id)
+                }
+                cmo.update("discount",updateBy,data,False)
+                return jsonify({'msg':'data updated successfully'}),200
+            except Exception as e:
+                return jsonify({'msg':'please provide discount'}),400
+
         else:
             return jsonify({'msg':'please provide valid unique id'}),404
         

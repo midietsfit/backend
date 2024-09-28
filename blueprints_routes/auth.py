@@ -8,6 +8,7 @@ from flask_socketio import disconnect
 UPLOAD_FOLDER = os.path.join("uploads", "image") 
 
 
+
 # from base import Blueprint
 # from base import getRole
 def unique_timestamp():
@@ -293,15 +294,14 @@ def register():
                 otp = random.randint(1000, 9999)
                 id = userDetails[0]["_id"]
                 updateBy={'_id':ObjectId(id)}
-
-                account_sid = 'ACd2f95ae52ab7d75bc0a9ae91b9d3ce4f'
-                auth_token = '8167ac43ddbe13625e78edbb51a1a6df'
-                client = Client(account_sid, auth_token)
-                message = client.messages.create(
-                    body=otp,
-                    from_="+15642166902",
-                    to=userDetails[0]["mobile"]
-                )
+                
+                
+                twillio_msg.send_sms(mobile,f"Your MiDiets App verification code is {otp} to verify your number")
+                # message = client.messages.create(
+                #     body=otp,
+                #     from_="+15642166902",
+                #     to=userDetails[0]["mobile"]
+                # )
                 data = {
                     'otp':otp
                 }
@@ -316,16 +316,17 @@ def register():
             otp = random.randint(1000, 9999)
 
 
-            account_sid = 'ACd2f95ae52ab7d75bc0a9ae91b9d3ce4f'
-            auth_token = '8167ac43ddbe13625e78edbb51a1a6df'
-            client = Client(account_sid, auth_token)
-            message = client.messages.create(
-                body=otp,
-                from_="+15642166902",
-                to=mobile
-            )
+            twillio_msg.send_sms(mobile,f"Your MiDiets App verification code is {otp} to verify your number")
+            # account_sid = acc_id
+            # auth_token = acc_sec
+            # client = Client(account_sid, auth_token)
+            # message = client.messages.create(
+            #     from_=from_msg,
+            #     body=f"Your MiDiets App verification code is {otp} to verify your number",
+            #     to=to_msg
+            # )
 
-            print(message.sid)
+            
 
 
 
